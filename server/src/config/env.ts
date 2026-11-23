@@ -65,6 +65,13 @@ const envSchema = z.object({
 	S3_SIGNED_URL_TTL: z.coerce.number().int().positive().default(900),
 
 	LOG_LEVEL: z.enum(['debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+
+	/**
+	 * Admin inicial do seed (`src/db/seed.ts`). Em produção, sem as duas o seed
+	 * não cria admin: credencial fixa no código vira senha pública.
+	 */
+	SEED_ADMIN_EMAIL: z.union([z.email(), z.literal('')]).default(''),
+	SEED_ADMIN_PASSWORD: z.union([z.string().min(12), z.literal('')]).default(''),
 });
 
 const result = envSchema.safeParse(process.env);

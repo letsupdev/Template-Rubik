@@ -13,23 +13,39 @@
  *   - no boot do container, antes da API subir (ver o CMD do Dockerfile). Em
  *     produção, só quando a base ainda não tem nenhum usuário.
  *
- * ⚠️ A credencial abaixo é fixa e a MESMA em todo projeto que clonar o Rubik.
- * É conveniência de primeiro acesso, não uma conta de trabalho: troque a senha
- * no primeiro login. Em produção, o seed só roda contra base vazia — um sistema
- * com gente dentro nunca ganha um admin de senha conhecida.
+ * A credencial vem de `SEED_ADMIN_EMAIL` e `SEED_ADMIN_PASSWORD`. Em produção,
+ * sem as duas, nenhum admin é criado. Fora de produção vale a credencial de
+ * desenvolvimento abaixo, a MESMA em todo projeto que clonar o Rubik: é só para
+ * `pnpm dev`. Em produção, o seed só roda contra base vazia.
  */
 import { randomUUID } from 'node:crypto';
 import { eq } from 'drizzle-orm';
 import { auth } from 'src/modules/auth/auth';
-import { isProduction } from 'src/config/env';
+import { env, isProduction } from 'src/config/env';
 import { db, queryClient } from 'src/db/db.provider';
 import { user } from 'src/db/schema/auth';
 import { role } from 'src/db/schema/role';
 import { PERMISSIONS } from 'src/modules/roles/types/role.types';
 
 const SEED_NAME = 'Desenvolvedor';
-const SEED_EMAIL = 'desenvolvedor@letsup.team';
-const SEED_PASSWORD = '123mudar';
+const DEV_EMAIL = 'desenvolvedor@letsup.team';
+const DEV_PASSWORD = '123mudar';
+
+type SeedAdmin = { email: string; password: string; fromEnv: boolean };
+
+function resolveSeedAdmin(): SeedAdmin | null {
+	if (env.SEED_ADMIN_EMAIL !== '' && env.SEED_ADMIN_PASSWORD !== '') {
+		return { email: env.SEED_ADMIN_EMAIL, password: env.SEED_ADMIN_PASSWORD, fromEnv: true };
+	}
+	// `localhost` escapa pelo mesmo motivo do `config/env.ts`: é o smoke test das
+	// imagens de produção (`pnpm docker:prod`), não um deploy de verdade.
+	const authHost = new URL(env.BETTER_AUTH_URL).hostname;
+	const isLocalSmokeTest = authHost === 'localhost' || authHost === '127.0.0.1';
+	if (isProduction && !isLocalSmokeTest) {
+		return null;
+	}
+	return { email: DEV_EMAIL, password: DEV_PASSWORD, fromEnv: false };
+}
 
 function log(message: string): void {
 	process.stdout.write(`[seed] ${message}\n`);
@@ -105,26 +121,32 @@ async function seed(): Promise<void> {
 
 	await seedSystemRoles();
 
+	const admin = resolveSeedAdmin();
+	if (!admin) {
+		log('SEED_ADMIN_EMAIL e SEED_ADMIN_PASSWORD ausentes: admin inicial não criado.');
+		return;
+	}
+
 	const [existing] = await db
 		.select({ id: user.id, role: user.role })
 		.from(user)
-		.where(eq(user.email, SEED_EMAIL))
+		.where(eq(user.email, admin.email))
 		.limit(1);
 
 	if (existing) {
 		if (existing.role?.split(',').includes('admin')) {
-			log(`${SEED_EMAIL} já existe e é admin. Nada a fazer.`);
+			log(`${admin.email} já existe e é admin. Nada a fazer.`);
 			return;
 		}
 		await promoteToAdmin(existing.id);
-		log(`${SEED_EMAIL} já existia; promovido a admin.`);
+		log(`${admin.email} já existia; promovido a admin.`);
 		return;
 	}
 
 	// `createUser` do plugin admin não passa por `disableSignUp`.
 	// Chamado server-side, sem sessão, pois este é o primeiro admin.
 	const created = await auth.api.createUser({
-		body: { name: SEED_NAME, email: SEED_EMAIL, password: SEED_PASSWORD, role: 'admin' },
+		body: { name: SEED_NAME, email: admin.email, password: admin.password, role: 'admin' },
 	});
 
 	if (!created.user?.id) {
@@ -133,7 +155,12 @@ async function seed(): Promise<void> {
 
 	await promoteToAdmin(created.user.id);
 
-	log(`admin criado: ${SEED_EMAIL} / ${SEED_PASSWORD}`);
+	// A senha de SEED_ADMIN_PASSWORD nunca vai para o log; a de desenvolvimento é pública.
+	if (admin.fromEnv) {
+		log(`admin criado: ${admin.email}`);
+		return;
+	}
+	log(`admin criado: ${admin.email} / ${admin.password}`);
 	log('troque a senha antes de expor esta aplicação.');
 }
 
