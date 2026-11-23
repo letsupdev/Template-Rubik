@@ -1,0 +1,37 @@
+# Vai para o repositório como deploy/Dockerfile.dockerignore.
+# O Docker usa este arquivo para o deploy/Dockerfile (os caminhos são relativos à raiz do repositório).
+# Fica em deploy/, e não na raiz como .dockerignore, para não mexer no build de hoje no Railway.
+# Impede que segredos e lixo local entrem na imagem. Obrigatório: antes do build, o Dokploy grava
+# deploy/.env com TODAS as variáveis da Application (opção "Create Env File"), e a linha **/.env
+# abaixo é o que impede esse arquivo de ir para dentro da imagem com o COPY . .
+
+# Segredos
+**/.env
+**/.env.*
+!**/.env.example
+**/*.pem
+**/*.key
+**/appsettings.Development.json
+**/appsettings.Local.json
+**/secrets.json
+
+# Dependências e builds locais (são refeitos dentro da imagem)
+**/node_modules
+**/dist
+**/build
+**/.next
+**/.turbo
+**/coverage
+**/.venv
+**/__pycache__
+# Projetos C# (.NET): descomente as duas linhas abaixo
+# **/bin
+# **/obj
+
+# Git, ferramentas e dados locais
+.git
+.github
+.vscode
+.idea
+**/*.log
+dumps
