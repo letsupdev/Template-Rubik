@@ -60,6 +60,19 @@ O projeto `rubik` tem 3 Postgres no Railway. Qual deles a API usa? (pergunta abe
 | api | `SEED_ADMIN_EMAIL`, `SEED_ADMIN_PASSWORD` | **novas (Fase 1)** | execução | não | conta de teste |
 | front | `VITE_API_URL` | `https://api-<cliente>.<dominio>` | **build** (Build Time Arguments) | não | `https://api-rubik.upletsup.com` |
 
+## Segredos: Doppler (produção)
+
+Decidido em 24/11/2026 (repositório central, `docs/03-railway-para-dokploy.md`, seção 3, "Segredos no Doppler"). **No teste da VPS, sem Doppler:** nenhuma Application recebe `DOPPLER_TOKEN`, e as variáveis ficam na aba Environment.
+
+- **Projeto Doppler:** `rubik`, com os ambientes `prd` e `ens` (ensaio). A raiz de cada ambiente leva o que mais de uma Application usa; a divisão "variável → config" sai da tabela de variáveis acima, no `/configurar`.
+- **Imagem:** o bloco do Doppler no estágio `api` do `deploy/Dockerfile`; o `front` (nginx) fica de fora. Sem `DOPPLER_TOKEN`, o `com-segredos` roda o comando direto.
+- **Schedule Jobs:** nenhum.
+
+| Application | Config no ensaio | Config em produção | Na Application do Dokploy |
+|---|---|---|---|
+| api | `ens_api` | `prd_api` | `DOPPLER_TOKEN` |
+| front | — | — | só as Build Time Arguments (`VITE_*`): front em nginx, sem segredo em execução |
+
 ## Dependências e integrações
 
 - **Comunicação entre serviços:** o front chama a API pela URL pública (`VITE_API_URL`). Não há chamada interna.

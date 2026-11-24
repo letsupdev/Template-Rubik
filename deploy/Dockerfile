@@ -37,6 +37,13 @@ ENV NODE_ENV=production \
     PORT=3000
 WORKDIR /app
 RUN addgroup -S app && adduser -S app -G app
+# Segredos (decidido em 24/11/2026): Doppler CLI 3.77.1 pelo digest da imagem oficial, e o
+# com-segredos, que só passa pelo Doppler quando há DOPPLER_TOKEN (produção). Sem token
+# (teste da VPS, Railway), roda o comando direto. docs/03, seção "Segredos no Doppler".
+COPY --from=dopplerhq/cli:3.77.1@sha256:955488ce31f51293e8f956fa1ce138664134699350d5ad690a5d7889ef92af87 /bin/doppler /usr/local/bin/doppler
+RUN printf '#!/bin/sh\nif [ -n "${DOPPLER_TOKEN:-}" ]; then exec doppler run --config-dir /tmp/.doppler --forward-signals --no-exit-on-write-failure -- "$@"; fi\nexec "$@"\n' > /usr/local/bin/com-segredos \
+ && chmod 755 /usr/local/bin/com-segredos
+ENTRYPOINT ["com-segredos"]
 COPY --from=prod-deps-api --chown=app:app /app/node_modules ./node_modules
 COPY --from=prod-deps-api --chown=app:app /app/server/node_modules ./server/node_modules
 COPY --from=build-api --chown=app:app /app/server/dist ./server/dist
