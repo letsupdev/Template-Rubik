@@ -92,9 +92,11 @@ export default defineConfig({
 						return;
 					}
 
-					// Separador de caminho nas duas pontas: evita casar `react` dentro
-					// de `react-hook-form` ou `@tanstack/react-router`.
-					if (/[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
+					// Ancorado em `node_modules/`: o pacote tem que ser o próprio react,
+					// react-dom ou scheduler. Sem a âncora, `@floating-ui/react-dom` entra
+					// aqui, puxa o `@floating-ui/dom` do vendor e os dois chunks se importam:
+					// o vendor roda antes do React e a tela fica em branco (licoes.md, L8).
+					if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) {
 						return 'react';
 					}
 

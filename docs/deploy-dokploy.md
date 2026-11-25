@@ -85,6 +85,7 @@ Decidido em 24/11/2026 (repositório central, `docs/03-railway-para-dokploy.md`,
 
 - `deploy/Dockerfile` (estágios `api`, `front`, `sem-estagio`), `deploy/Dockerfile.dockerignore`, `deploy/nginx-spa.conf`. O molde já buildou numa cópia: estágio `api` em 13 min do zero, imagem de 462 MB.
 - `server/src/db/seed.ts`: ler `SEED_ADMIN_EMAIL`/`SEED_ADMIN_PASSWORD`; sem elas, em produção, não criar admin (hoje a credencial é fixa no código, linhas 31 e 32).
+- `client/vite.config.ts` (25/11, achado na VPS de teste): a regex do chunk `react` no `manualChunks` ancorada em `node_modules/`. Sem isso, o `@floating-ui/react-dom` entrava no chunk do React, os chunks `react` e `vendor` se importavam e a tela ficava em branco (`Cannot set properties of undefined (setting 'Activity')`). O bug já estava na `main` desde 07/10; a correção também conserta o Railway quando a branch entrar na `main`. Lição L8 em `.claude/rules/licoes.md`.
 
 ## Verificação
 
@@ -96,4 +97,5 @@ Decidido em 24/11/2026 (repositório central, `docs/03-railway-para-dokploy.md`,
 - Credencial fixa no seed (pendência 28): corrigida na Fase 1.
 - O `ticket-cleanup` apaga objetos do bucket configurado: nunca apontar para o MinIO do Railway.
 - O healthcheck checa o banco: com o banco fora do ar, a API reinicia em loop.
+- O front de hoje no Railway, buildado da `main` depois de 07/10, deve estar com a tela em branco do `manualChunks` (corrigido na branch). Não conferido no Railway.
 - `cookiePrefix: 'app'` genérico: sem colisão com cookie host-only, mas a regra pede nome por projeto.

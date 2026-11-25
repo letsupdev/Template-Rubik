@@ -217,6 +217,29 @@ Access-Control-Allow-Headers in preflight response` no console. O
   `access-control-allow-headers` e `access-control-expose-headers` com o nome
   dentro.
 
+## L8. Regex de `manualChunks` casa o pacote logo depois de `node_modules/`
+
+**Erro real:** no deploy de produção pela imagem (25/11/2026), o front buildou e
+o nginx respondeu, mas a tela ficou em branco com `Uncaught TypeError: Cannot
+set properties of undefined (setting 'Activity')` no chunk `react-*.js`. O
+`manualChunks` em `client/vite.config.ts` mandava para o chunk `react` todo id
+que casasse `/[\\/](react|react-dom|scheduler)[\\/]/`, e
+`node_modules/@floating-ui/react-dom/` casa.
+
+- **Causa raiz:** a regex olhava só o nome entre separadores, sem dizer onde ele
+  começa. O `@floating-ui/react-dom` (do Radix) caiu no chunk `react` e importa
+  o `@floating-ui/dom`, que ficou no `vendor`. Os dois chunks passaram a se
+  importar, e o `vendor` executa antes de o React (CommonJS embrulhado)
+  inicializar o objeto de exports. O build não avisa, e o `healthy` do nginx
+  também não pega: só o navegador mostra.
+- **Regra:** regra de `manualChunks` por pacote casa o nome logo depois de
+  `node_modules/` (`/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/`).
+  Pacote com escopo entra pelo escopo (`@floating-ui/`), nunca por um pedaço do
+  nome.
+- **Verificação:** depois de `pnpm --filter client build`, abrir o `dist` servido
+  (`pnpm --filter client preview`) e conferir o console sem erro; e
+  `grep -l "floating-ui" client/dist/assets/react-*.js` não acha nada.
+
 <!--
 Não preencha com bug hipotético nem com regra que já está em `.claude/rules/**`
 — entrada sem incidente real vira ruído e faz o próximo leitor parar de ler o
